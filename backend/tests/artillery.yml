@@ -1,0 +1,55 @@
+# artillery.yml — Load testing Supabase Backend
+# Uso: artillery run artillery.yml
+# Con report HTML: artillery run artillery.yml --output report.json && artillery report report.json
+
+config:
+  target: "http://localhost:3000"
+  phases:
+    - name: "Warm up"    duration: 30  arrivalRate: 5
+    - name: "Sustained"  duration: 60  arrivalRate: 20
+    - name: "Spike"      duration: 30  arrivalRate: 50
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  ensure:
+    thresholds:
+      - http.response_time.p95: 500
+      - http.response_time.p99: 1000
+    conditions:
+      - expression: "http.codes.200 > 0"
+        strict: true
+
+scenarios:
+  - name: "Lista post pubblica"
+    weight: 60
+    flow:
+      - get:
+          url: "/posts"
+          qs: { page: 1, limit: 10 }
+          expect:
+            - statusCode: 200
+            - hasProperty: "data"
+            - hasProperty: "pagination"
+
+  - name: "OTP verify + crea post"
+    weight: 30
+    flow:
+      - post:
+          url: "/auth/otp/verify"
+          json: { phone: "+393331234567", token: "123456" }
+          capture: [{ json: "$.access_token", as: "token" }]
+          expect: [{ statusCode: 200 }]
+      - post:
+          url: "/posts"
+          headers: { Authorization: "Bearer {{ token }}" }
+          json: { title: "Test Artillery {{ $randomString() }}", content: "Contenuto test" }
+          expect: [{ statusCode: 201 }]
+
+  - name: "Rate limit auth"
+    weight: 10
+    flow:
+      - loop:
+          - post:
+              url: "/auth/otp/send"
+              json: { phone: "+393331234567" }
+        count: 12
