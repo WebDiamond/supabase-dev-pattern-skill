@@ -30,10 +30,18 @@ supabase-dev-pattern/
 │   ├── sql/
 │   │   ├── schema.sql                ← Tabelle: profiles, posts, stripe_customers, orders, subscriptions
 │   │   └── rls.sql                   ← RLS policies per tutte le tabelle + storage
-│   └── edge-functions/
-│       ├── send-email.ts             ← Email transazionale via Resend (Deno)
-│       ├── send-otp-custom.ts        ← OTP SMS via provider custom (Deno)
-│       └── stripe-webhook.ts         ← Webhook Stripe completo (Deno)
+│   ├── edge-functions/
+│   │   ├── send-email.ts             ← Email transazionale via Resend (Deno)
+│   │   ├── send-otp-custom.ts        ← OTP SMS via provider custom (Deno)
+│   │   └── stripe-webhook.ts         ← Webhook Stripe completo (Deno)
+│   └── aws/
+│       └── s3-setup.sh               ← Configura bucket S3 sicuro (CLI commands)
+│
+├── deploy/                           ← Script deploy e guida sviluppo locale
+│   ├── LOCAL-DEV.md                  ← Tutti i comandi per sviluppo e test in locale
+│   ├── deploy-backend.sh             ← Deploy Node.js su server (PM2 + Nginx + HTTPS)
+│   ├── deploy-web.sh                 ← Deploy React su Vercel/Netlify/Nginx + CI/CD
+│   └── deploy-mobile.sh             ← Build EAS + submit App Store/Google Play + OTA
 │
 ├── backend/                          ← Node.js + Express
 │   ├── lib/
@@ -49,11 +57,14 @@ supabase-dev-pattern/
 │   │   ├── auth.js                   ← OTP SMS send/verify
 │   │   ├── mfa.js                    ← 2FA TOTP enroll/verify/unenroll
 │   │   ├── posts.js                  ← CRUD post con validazione
-│   │   └── payments.js               ← Checkout, PaymentIntent, portale, webhook Stripe
+│   │   ├── payments.js               ← Checkout, PaymentIntent, portale, webhook Stripe
+│   │   └── storage.js                ← Upload/download S3, presigned URL, lista, delete
 │   ├── services/
 │   │   ├── postService.js            ← Query DB post con paginazione
-│   │   ├── storageService.js         ← Upload avatar, URL firmati, delete
-│   │   └── stripeService.js          ← getOrCreateCustomer, checkout, portale, abbonamento
+│   │   ├── storageService.js         ← Upload avatar Supabase Storage
+│   │   ├── stripeService.js          ← getOrCreateCustomer, checkout, portale, abbonamento
+│   │   ├── s3Service.js              ← AWS S3: upload, presigned URL, validazione, delete
+│   │   └── pushNotificationService.js← Expo Push API: sendToUser, sendToUsers, broadcast
 │   ├── validators/
 │   │   └── postValidators.js         ← express-validator rules + validate middleware
 │   ├── utils/
@@ -81,8 +92,16 @@ supabase-dev-pattern/
 │   │   │   └── paymentsHooks.ts      ← useSubscription (TanStack Query)
 │   │   ├── posts/
 │   │   │   └── postsHooks.ts         ← usePosts, useCreatePost, useRealtimePosts
-│   │   └── media/
-│   │       └── storageService.ts     ← validateFile, uploadAvatar, getSignedUrl
+│   │   ├── media/
+│   │   │   └── storageService.ts     ← validateFile, uploadAvatar, getSignedUrl (Supabase)
+│   │   ├── storage/
+│   │   │   └── s3Service.ts          ← uploadFileDirect/Presigned, download, lista (AWS S3)
+│   │   ├── maps/
+│   │   │   └── maps.tsx              ← GoogleMapComponent, useCurrentLocation, geocoding
+│   │   └── qrcode/
+│   │       ├── QRCodeGenerator.tsx   ← Genera QR SVG/PNG, download, copia clipboard
+│   │       ├── QRCodeScanner.tsx     ← Scanner webcam/fotocamera, BarcodeDetector + ZXing
+│   │       └── useQRCode.ts          ← generate/parse/handleScan con routing React Router
 │   ├── components/
 │   │   └── ProtectedRoute.tsx        ← ProtectedRoute + SubscriptionRoute
 │   ├── pages/
@@ -105,15 +124,22 @@ supabase-dev-pattern/
         ├── lib/
         │   ├── supabase.ts           ← Client con SecureStore adapter + AppState refresh
         │   ├── edgeFunctions.ts      ← callEdgeFunction + api helpers
-        │   └── notifications.ts      ← Push notification setup e registrazione token
+        │   └── notifications.ts      ← Push: canali Android, handler, navigazione, locali
         ├── features/
         │   ├── auth/
         │   │   └── authService.ts    ← signIn/Up/Out, OAuth, OTP SMS, 2FA TOTP
         │   ├── payments/
         │   │   ├── paymentsService.ts← createPaymentIntent, portale, getSubscription
         │   │   └── useSubscription.ts← Hook con Realtime per aggiornamenti live
-        │   └── media/
-        │       └── storageService.ts ← pickAndUploadAvatar con ridimensionamento
+        │   ├── media/
+        │   │   ├── storageService.ts ← pickAndUploadAvatar (Supabase Storage)
+        │   │   └── s3Service.ts      ← uploadFileToS3, downloadFileFromS3 (AWS S3)
+        │   ├── maps/
+        │   │   └── maps.tsx          ← InteractiveMap, useCurrentLocation, geocoding
+        │   └── qrcode/
+        │       ├── QRCodeGenerator.tsx← Genera QR, salva PNG, condividi
+        │       ├── QRCodeScanner.tsx  ← Scanner fotocamera con mirino animato e torcia
+        │       └── useQRCode.ts       ← generate/parse/handleScan con routing automatico
         └── utils/
             └── validation.ts         ← Schema Zod condivisi + secureLogout
 ```

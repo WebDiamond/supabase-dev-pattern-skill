@@ -15,7 +15,13 @@
 - [Layer Backend — Node.js + Express](#layer-backend--nodejs--express)
 - [Layer Web — React.js + Vite](#layer-web--reactjs--vite)
 - [Layer Mobile — Expo SDK 54+](#layer-mobile--expo-sdk-54)
+- [QR Code — Generazione e Scansione](#qr-code--generazione-e-scansione)
+- [Mappe e Geolocalizzazione](#mappe-e-geolocalizzazione)
+- [AWS S3 — File Storage](#aws-s3--file-storage)
+- [Notifiche Push](#notifiche-push)
 - [Stripe — Integrazione pagamenti](#stripe--integrazione-pagamenti)
+- [Deploy e Pubblicazione](#deploy-e-pubblicazione)
+- [Sviluppo locale — Comandi](#sviluppo-locale--comandi)
 - [Setup iniziale passo per passo](#setup-iniziale-passo-per-passo)
 - [Variabili d'ambiente](#variabili-dambiente)
 - [Test e qualità](#test-e-qualità)
@@ -91,6 +97,27 @@ Una **skill Claude** è un file (o una cartella di file) che insegna a Claude co
 - Bucket pubblici (avatar) e privati (documenti) con URL firmati
 - Storage Policies RLS
 - Drag & drop su web, picker galleria/fotocamera su mobile
+
+### QR Code
+| Feature | Web | Mobile |
+|---|:---:|:---:|
+| Generazione QR da stringa (URL, JSON, deep link, TOTP URI) | ✅ | ✅ |
+| Rendering SVG inline (nitido a qualsiasi zoom) | ✅ | — |
+| Rendering su Canvas → download PNG | ✅ | — |
+| Generazione con SVG nativo (react-native-qrcode-svg) | — | ✅ |
+| Salvataggio QR in galleria fotografica | — | ✅ |
+| Condivisione nativa QR (Share API) | — | ✅ |
+| Copia contenuto negli appunti | ✅ | — |
+| Scanner da webcam/fotocamera del browser | ✅ | — |
+| BarcodeDetector nativo (Chrome/Edge) + ZXing fallback (Firefox/Safari) | ✅ | — |
+| Scanner da fotocamera nativa (expo-camera) | — | ✅ |
+| Mirino con angoli, linea di scansione animata, overlay successo | ✅ | ✅ |
+| Torcia (flash) durante la scansione | — | ✅ |
+| Selezione fotocamera (frontale/posteriore) | ✅ | — |
+| Scan continuo (modalità inventario/magazzino) | ✅ | ✅ |
+| Routing automatico per tipo (URL, ordine, profilo, prodotto) | ✅ | ✅ |
+| Parsing payload JSON strutturato | ✅ | ✅ |
+| Supporto barcode 1D (EAN-13, Code128, UPC, ecc.) | ✅ | ✅ |
 
 ### Realtime
 - Subscriptions live a cambiamenti nel DB (`postgres_changes`)
@@ -185,7 +212,11 @@ supabase-dev-pattern/
 │   │   │   ├── paymentsService.ts     ← checkout, intent, portale
 │   │   │   └── paymentsHooks.ts       ← useSubscription
 │   │   ├── posts/postsHooks.ts        ← TanStack Query hooks
-│   │   └── media/storageService.ts    ← upload + validazione
+│   │   ├── media/storageService.ts    ← upload + validazione
+│   │   └── qrcode/
+│   │       ├── QRCodeGenerator.tsx    ← genera QR SVG/PNG, download, copia
+│   │       ├── QRCodeScanner.tsx      ← scanner webcam, BarcodeDetector + ZXing
+│   │       └── useQRCode.ts           ← generate/parse/handleScan
 │   ├── components/
 │   │   └── ProtectedRoute.tsx         ← ProtectedRoute + SubscriptionRoute
 │   ├── pages/
@@ -214,12 +245,16 @@ supabase-dev-pattern/
         │   ├── payments/
         │   │   ├── paymentsService.ts ← intent, portale, subscription
         │   │   └── useSubscription.ts ← hook con Realtime
-        │   └── media/storageService.ts← upload avatar con manipolazione
+        │   ├── media/storageService.ts← upload avatar con manipolazione
+        │   └── qrcode/
+        │       ├── QRCodeGenerator.tsx← genera QR, salva PNG, condividi
+        │       ├── QRCodeScanner.tsx  ← scanner fotocamera, mirino animato
+        │       └── useQRCode.ts       ← generate/parse/handleScan
         └── utils/
             └── validation.ts          ← schema Zod + secureLogout
 ```
 
-**Totale: 51 file · 34 cartelle**
+**Totale: 76 file · 42 cartelle**
 
 ---
 
@@ -323,6 +358,18 @@ Una volta installata, puoi chiedere a Claude in linguaggio naturale. Esempi real
 "Come implemento la dark mode automatica su Expo?"
 "Scrivi un componente Input con animazione focus e errore accessibile"
 "Aggiungi un Toast con animazione slide-in"
+```
+
+### QR Code
+
+```
+"Aggiungi la generazione di QR code su React"
+"Come scansiono un QR code dalla webcam?"
+"Implementa lo scanner QR con expo-camera su mobile"
+"Genera un QR code per il link di un ordine che si può scaricare come PNG"
+"Come gestisco il routing automatico dopo una scansione QR?"
+"Scan continuo per un sistema di inventario"
+"Come aggiungo la torcia allo scanner QR su Expo?"
 ```
 
 ---
@@ -558,6 +605,499 @@ Componenti disponibili nella skill (da costruire seguendo i pattern):
 - **`Card`** — superficie elevata con shadow
 - **`ScreenWrapper`** — SafeArea + StatusBar + KeyboardAvoidingView
 - **`Toast`** — notifica non invasiva con slide-in animation
+
+---
+
+## QR Code — Generazione e Scansione
+
+### Web
+
+**Installazione:**
+```bash
+npm install qrcode @zxing/library
+npm install -D @types/qrcode
+```
+
+**Generazione QR (SVG o PNG):**
+```tsx
+import { QRCodeGenerator } from './features/qrcode/QRCodeGenerator'
+
+// QR semplice per un URL
+<QRCodeGenerator value="https://tuodominio.com" size={200} />
+
+// QR per il setup 2FA (TOTP URI) con download
+<QRCodeGenerator
+  value={totpUri}
+  label="Scansiona con Google Authenticator"
+  size={256}
+  errorCorrectionLevel="H"   // H = alta correzione errori — consigliato per TOTP
+  withDownload
+  withCopy
+/>
+
+// QR con payload strutturato (ordine, prodotto, profilo)
+const { generate } = useQRCode()
+<QRCodeGenerator value={generate.order('ord-123', 'usr-abc')} />
+```
+
+**Scansione da webcam:**
+```tsx
+import { QRCodeScanner }   from './features/qrcode/QRCodeScanner'
+import { useQRCode }       from './features/qrcode/useQRCode'
+
+function ScanPage() {
+  const { handleScan } = useQRCode()  // routing automatico per tipo
+
+  return (
+    <QRCodeScanner
+      onScan={handleScan}        // naviga automaticamente per tipo di QR
+      onClose={() => navigate(-1)}
+      hint="Inquadra il QR code"
+    />
+  )
+}
+
+// Scan continuo (es. inventario)
+<QRCodeScanner
+  continuous
+  formats={['qr_code', 'ean_13', 'code_128']}
+  onScan={(data) => addItemToList(data)}
+  onClose={() => setOpen(false)}
+/>
+```
+
+Il componente usa automaticamente **BarcodeDetector** nativo (Chrome/Edge) con fallback **ZXing** per Firefox e Safari. Gestisce richiesta permesso, selezione fotocamera (frontale/posteriore), mirino SVG con angoli animati e linea di scansione.
+
+### Mobile
+
+**Installazione:**
+```bash
+npx expo install react-native-qrcode-svg react-native-svg
+npx expo install expo-camera expo-media-library
+```
+
+**Configurazione `app.json`** (aggiungi ai plugin e permessi):
+```json
+{
+  "expo": {
+    "plugins": [
+      ["expo-camera", { "cameraPermission": "Per scansionare QR code" }],
+      ["expo-media-library", { "photosPermission": "Per salvare il QR code" }]
+    ]
+  }
+}
+```
+
+**Generazione QR:**
+```tsx
+import { QRCodeGenerator } from '../src/features/qrcode/QRCodeGenerator'
+
+// QR base
+<QRCodeGenerator value="https://tuodominio.com" size={200} />
+
+// QR per 2FA con salvataggio e condivisione
+<QRCodeGenerator
+  value={totpUri}
+  label="Scansiona con Authenticator"
+  size={240}
+  withDownload     // salva in galleria
+  withShare        // foglio condivisione nativo iOS/Android
+/>
+```
+
+**Scansione da fotocamera:**
+```tsx
+import { QRCodeScanner } from '../src/features/qrcode/QRCodeScanner'
+import { useQRCode }     from '../src/features/qrcode/useQRCode'
+
+function ScanModal() {
+  const { handleScan } = useQRCode()
+
+  return (
+    <QRCodeScanner
+      onScan={handleScan}        // routing automatico per tipo
+      onCancel={() => router.back()}
+      hint="Inquadra il QR code"
+    />
+  )
+}
+
+// Scan continuo
+<QRCodeScanner
+  continuous
+  barcodeTypes={['qr', 'ean13', 'code128']}
+  onScan={(data) => processItem(data)}
+  onCancel={() => setScanning(false)}
+/>
+```
+
+Il componente gestisce richiesta permesso, mirino con angoli colorati, linea di scansione animata (Reanimated), controllo torcia, debounce scan per evitare letture multiple, feedback aptico al successo.
+
+**Aprire lo scanner da una schermata:**
+```tsx
+// Da qualsiasi schermata
+router.push('/(app)/scan')
+
+// Con modalità specifica
+router.push({ pathname: '/(app)/scan', params: { mode: 'payment' } })
+```
+
+### Payload strutturati (web e mobile)
+
+Il hook `useQRCode` usa un formato JSON condiviso tra web e mobile:
+
+```ts
+// Genera payload strutturato
+const { generate } = useQRCode()
+
+generate.order('ord-123', 'usr-abc')
+// → '{"type":"order","version":1,"data":{"orderId":"ord-123","userId":"usr-abc"}}'
+
+generate.profile('usr-abc', 'peppe')
+// → '{"type":"profile","version":1,"data":{"userId":"usr-abc","username":"peppe"}}'
+
+generate.product('prod-456', 'Maglia Blu')
+// → '{"type":"product","version":1,"data":{"productId":"prod-456","name":"Maglia Blu"}}'
+
+generate.appLink('/checkout/ord-123')
+// → 'https://tuodominio.com/checkout/ord-123'  (web)
+// → 'myapp://checkout/ord-123'                  (mobile — deep link)
+```
+
+Quando `handleScan` riceve uno di questi payload, naviga automaticamente alla route corrispondente senza che tu debba scrivere alcun switch manuale.
+
+---
+
+## Mappe e Geolocalizzazione
+
+### Web — `web/features/maps/maps.tsx`
+
+**Installazione:**
+```bash
+npm install @react-google-maps/api
+```
+
+**Variabili d'ambiente:**
+```env
+VITE_GOOGLE_MAPS_API_KEY=AIza...   # Chiave ristretta a HTTP referrers del tuo dominio
+```
+
+```tsx
+import { GoogleMapComponent, useCurrentLocation, geocodeAddress, distanceKm } from './features/maps/maps'
+
+// Mappa con marker e posizione utente
+<GoogleMapComponent
+  markers={[
+    { id: '1', position: { lat: 41.9028, lng: 12.4964 }, title: 'Roma', description: 'Capitale' },
+  ]}
+  showUserLocation
+  userRadius={500}               // cerchio 500m intorno all'utente
+  onMarkerClick={(m) => console.log(m)}
+  onMapClick={(coord) => console.log(coord)}
+  darkMode={false}
+  style={{ height: '500px' }}
+/>
+
+// Posizione corrente
+const { position, loading, error } = useCurrentLocation()
+
+// Geocoding
+const coord = await geocodeAddress('Via Roma 1, Milano')
+
+// Distanza tra due punti
+const km = distanceKm({ lat: 41.9028, lng: 12.4964 }, { lat: 45.4654, lng: 9.1866 })
+```
+
+**Sicurezza API Key Google Maps:**
+- Crea chiavi separate per sviluppo e produzione
+- Restringi la chiave a HTTP referrers (`https://tuodominio.com/*`)
+- Abilita solo Maps JavaScript API, Geocoding API, Places API
+- Imposta un budget di spesa mensile su Google Cloud Console
+
+### Mobile — `mobile/src/features/maps/maps.tsx`
+
+**Installazione:**
+```bash
+npx expo install react-native-maps expo-location
+```
+
+**Configurazione `app.json`:**
+```json
+{
+  "expo": {
+    "ios":     { "config": { "googleMapsApiKey": "$EXPO_PUBLIC_GOOGLE_MAPS_API_KEY" } },
+    "android": { "config": { "googleMaps": { "apiKey": "$EXPO_PUBLIC_GOOGLE_MAPS_API_KEY" } } },
+    "plugins": [["expo-location", { "locationAlwaysAndWhenInUsePermission": "Per mostrarti i risultati vicino a te" }]]
+  }
+}
+```
+
+```tsx
+import { InteractiveMap, useCurrentLocation, reverseGeocode, distanceKm } from './features/maps/maps'
+
+// Mappa interattiva con marker e cerchio raggio
+<InteractiveMap
+  markers={[{ id: '1', latitude: 41.9028, longitude: 12.4964, title: 'Punto A' }]}
+  showUserLocation
+  userRadius={300}
+  onMarkerPress={(m) => console.log(m)}
+  style={{ height: 400, borderRadius: 16 }}
+/>
+
+// Hook posizione con aggiornamenti continui
+const { coordinate, loading, error } = useCurrentLocation({ watchPosition: true })
+
+// Reverse geocoding (coordinate → indirizzo)
+const address = await reverseGeocode({ latitude: 41.9028, longitude: 12.4964 })
+```
+
+---
+
+## AWS S3 — File Storage
+
+### Setup bucket (una sola volta)
+
+```bash
+chmod +x shared/aws/s3-setup.sh
+# Modifica le variabili BUCKET_NAME, REGION, ACCOUNT_ID nel file
+./shared/aws/s3-setup.sh
+```
+
+Il file configura: Block Public Access, versioning, crittografia AES-256, CORS, bucket policy (nega HTTP), IAM user minimale, lifecycle rules per file temporanei.
+
+### Backend — `backend/services/s3Service.js` + `backend/routes/storage.js`
+
+**Installazione:**
+```bash
+npm install @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
+```
+
+```js
+// Upload diretto (file in memoria da Multer)
+const { key } = await uploadToS3({ buffer, mimeType, originalName, userId, category: 'documents' })
+
+// URL presigned per upload diretto client→S3 (file grandi)
+const { uploadUrl, key } = await getPresignedUploadUrl({ userId, mimeType, originalName, category: 'uploads' })
+
+// URL presigned per download sicuro (scade in 15 min)
+const { downloadUrl } = await getPresignedDownloadUrl({ key })
+
+// Elimina — verifica ownership automaticamente
+await deleteFromS3(key, userId)
+```
+
+### Web — `web/features/storage/s3Service.ts`
+
+```ts
+import { uploadFileDirect, uploadFilePresigned, downloadFile, listFiles } from './features/storage/s3Service'
+
+// Upload piccolo (< 5MB) via backend
+const { key } = await uploadFileDirect(file, 'documents', (pct) => setProgress(pct))
+
+// Upload grande (≥ 5MB) diretto su S3 con progress
+const key = await uploadFilePresigned(file, 'videos', (pct) => setProgress(pct))
+
+// Download + trigger download browser
+await downloadFile(key, 'documento.pdf')
+
+// Lista file
+const { files } = await listFiles('documents')
+```
+
+### Mobile — `mobile/src/features/media/s3Service.ts`
+
+```ts
+import { uploadFileToS3, downloadFileFromS3 } from './features/media/s3Service'
+
+// Upload con progress (usa FileSystem.uploadAsync internamente)
+const key = await uploadFileToS3(fileUri, 'image/jpeg', 'foto.jpg', 'uploads', (pct) => setProgress(pct))
+
+// Download in cache locale con progress
+const localUri = await downloadFileFromS3(key, 'documento.pdf', (pct) => setProgress(pct))
+```
+
+**Differenza Supabase Storage vs AWS S3:**
+- **Supabase Storage** — ideale per avatar, immagini profilo (integrato con RLS, URL pubblici, trasformazioni immagini)
+- **AWS S3** — ideale per documenti privati, file grandi, backup, asset pesanti (più flessibile, presigned URL, lifecycle rules)
+
+---
+
+## Notifiche Push
+
+### Backend — `backend/services/pushNotificationService.js`
+
+**Installazione:**
+```bash
+npm install expo-server-sdk
+```
+
+```js
+import { sendToUser, sendToUsers, sendToAll } from './services/pushNotificationService.js'
+
+// Notifica singolo utente (es. dopo un ordine)
+await sendToUser(userId, {
+  title:     '📦 Ordine confermato',
+  body:      'Il tuo ordine #123 è stato confermato e sarà consegnato domani',
+  data:      { type: 'order', orderId: '123' },
+  channelId: 'orders',   // Android channel
+})
+
+// Batch a più utenti (gestisce automaticamente token scaduti)
+const { sent, failed } = await sendToUsers(userIds, {
+  title: '🎉 Novità disponibile',
+  body:  'Scopri le nuove funzionalità nella tua dashboard',
+})
+
+// Broadcast a tutti gli utenti
+await sendToAll({ title: '⚠️ Manutenzione programmata', body: 'Domani dalle 2:00 alle 4:00' })
+```
+
+La funzione `sendToUsers` rimuove automaticamente i token `DeviceNotRegistered` dal DB.
+
+### Mobile — `mobile/src/lib/notifications.ts`
+
+```tsx
+// Nel root layout — registra e ascolta notifiche
+import { usePushNotifications, showLocalNotification, scheduleLocalNotification } from './src/lib/notifications'
+
+export default function RootLayout() {
+  const { user } = useAuth()
+  usePushNotifications(user?.id)  // ← registra token e listener
+  // ...
+}
+
+// Notifica locale immediata (senza server)
+await showLocalNotification({
+  title:     '✅ Salvato',
+  body:      'Il documento è stato salvato con successo',
+  channelId: 'default',
+})
+
+// Notifica schedulata (reminder)
+const id = await scheduleLocalNotification({
+  title: '🔔 Promemoria',
+  body:  'Completa il tuo profilo per sbloccare tutte le funzionalità',
+  date:  new Date(Date.now() + 24 * 60 * 60 * 1000),  // tra 24 ore
+})
+
+// Routing automatico al tap della notifica
+// Il tap su una notifica con data: { type: 'order', orderId: '123' }
+// naviga automaticamente a /(app)/orders/123
+```
+
+**Canali Android predefiniti:** `default`, `orders`, `chat`, `marketing` — ognuno con importanza e vibrazione diversa.
+
+---
+
+## Deploy e Pubblicazione
+
+### Backend Node.js su server Linux
+
+```bash
+chmod +x deploy/deploy-backend.sh
+
+# Primo setup (installa Node, PM2, Nginx, HTTPS)
+./deploy/deploy-backend.sh setup
+
+# Deploy aggiornamenti (zero downtime con PM2 cluster)
+./deploy/deploy-backend.sh update
+
+# Rollback a versione precedente
+./deploy/deploy-backend.sh rollback
+
+# Visualizza stato e log
+./deploy/deploy-backend.sh status
+./deploy/deploy-backend.sh logs
+```
+
+Il deploy usa **PM2 in cluster mode** (un processo per CPU) con graceful reload — zero downtime. Nginx fa da reverse proxy con rate limiting aggiuntivo e cache degli asset statici.
+
+### Web React
+
+```bash
+chmod +x deploy/deploy-web.sh
+
+# Vercel (consigliato — zero config, SSL automatico, CDN globale)
+./deploy/deploy-web.sh vercel
+
+# Netlify
+./deploy/deploy-web.sh netlify
+
+# Server Nginx statico
+./deploy/deploy-web.sh nginx tuodominio.com
+
+# Solo build locale
+./deploy/deploy-web.sh build
+
+# Genera workflow GitHub Actions
+./deploy/deploy-web.sh cicd
+```
+
+### App Mobile — Store
+
+```bash
+chmod +x deploy/deploy-mobile.sh
+
+# Setup iniziale EAS
+./deploy/deploy-mobile.sh setup
+./deploy/deploy-mobile.sh secrets        # configura env sicuri
+
+# Build per test interno (APK Android + IPA iOS)
+./deploy/deploy-mobile.sh preview
+
+# Build produzione (AAB + IPA per gli store)
+./deploy/deploy-mobile.sh production
+
+# Pubblica su App Store (iOS)
+./deploy/deploy-mobile.sh submit ios
+
+# Pubblica su Google Play (Android)
+./deploy/deploy-mobile.sh submit android
+
+# OTA update (aggiorna solo il JS bundle, senza store, istantaneo)
+./deploy/deploy-mobile.sh update
+
+# Genera workflow GitHub Actions
+./deploy/deploy-mobile.sh cicd
+
+# Checklist pre-release completa
+./deploy/deploy-mobile.sh checklist
+```
+
+**OTA vs Store update:**
+- **OTA** (`eas update`) — aggiorna solo il codice JavaScript. Nessuna review, disponibile in pochi minuti. Non può modificare codice nativo, permessi, plugin.
+- **Store update** — necessario quando cambi plugin nativi, permessi, icona, versione nativa. Richiede review Apple (1-3 giorni) o Google Play.
+
+---
+
+## Sviluppo locale — Comandi
+
+La guida completa è in `deploy/LOCAL-DEV.md`. Qui i comandi principali:
+
+```bash
+# SUPABASE — avvia in locale con Docker
+supabase start                          # Studio: http://localhost:54323
+supabase functions serve                # Edge Functions: http://localhost:54321/functions/v1/
+supabase gen types typescript --local > src/types/database.ts
+
+# BACKEND
+cd backend && npm run dev               # http://localhost:3000
+stripe listen --forward-to localhost:3000/payments/webhook  # webhook Stripe
+
+# WEB
+cd web && npm run dev                   # http://localhost:5173
+npx vitest --ui                         # test con interfaccia grafica
+npx playwright test --ui                # E2E con interfaccia grafica
+
+# MOBILE
+cd mobile && npx expo start             # Metro bundler
+npx expo start --ios                    # simulatore iOS
+npx expo start --android                # emulatore Android
+npx jest --watchAll                     # test in watch mode
+
+# AWS S3 locale (opzionale, richiede Docker)
+docker run -d -p 4566:4566 -e SERVICES=s3 localstack/localstack
+```
 
 ---
 
@@ -879,6 +1419,9 @@ Il `transformIgnorePatterns` nel `jest.config.js` è già configurato correttame
 - [Zustand](https://zustand-demo.pmnd.rs) — state management
 - [React Hook Form](https://react-hook-form.com) — form handling
 - [Tailwind CSS](https://tailwindcss.com) — styling
+- [qrcode](https://github.com/soldair/node-qrcode) — generazione QR code (SVG + PNG)
+- [@zxing/library](https://github.com/zxing-js/library) — scanner QR fallback (Firefox/Safari)
+- [BarcodeDetector API](https://developer.mozilla.org/en-US/docs/Web/API/BarcodeDetector) — scanner nativo (Chrome/Edge)
 - [Vitest](https://vitest.dev) — unit test
 - [Playwright](https://playwright.dev) — E2E test
 
@@ -891,6 +1434,10 @@ Il `transformIgnorePatterns` nel `jest.config.js` è già configurato correttame
 - [expo-haptics](https://docs.expo.dev/versions/latest/sdk/haptics/) — feedback aptico
 - [expo-image-picker](https://docs.expo.dev/versions/latest/sdk/imagepicker/) — selezione immagini
 - [expo-image-manipulator](https://docs.expo.dev/versions/latest/sdk/imagemanipulator/) — ridimensionamento
+- [expo-camera](https://docs.expo.dev/versions/latest/sdk/camera/) — scanner QR/barcode
+- [react-native-qrcode-svg](https://github.com/awesomejerry/react-native-qrcode-svg) — generazione QR code
+- [react-native-svg](https://github.com/software-mansion/react-native-svg) — rendering SVG (dipendenza di qrcode-svg)
+- [expo-media-library](https://docs.expo.dev/versions/latest/sdk/media-library/) — salvataggio QR in galleria
 - [Jest + RNTL](https://testing-library.com/docs/react-native-testing-library/intro/) — test
 
 ---
