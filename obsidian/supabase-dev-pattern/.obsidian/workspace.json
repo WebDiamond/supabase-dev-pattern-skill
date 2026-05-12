@@ -1,0 +1,239 @@
+{
+  "main": {
+    "id": "6d4cc40117cfd0e8",
+    "type": "split",
+    "children": [
+      {
+        "id": "210a577d73d5655e",
+        "type": "tabs",
+        "dimension": 26.802884615384613,
+        "children": [
+          {
+            "id": "3e5a4cddac3c9956",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "Nuova scheda"
+            }
+          }
+        ]
+      },
+      {
+        "id": "632a33e3d45fa1e7",
+        "type": "tabs",
+        "dimension": 73.19711538461539,
+        "children": [
+          {
+            "id": "9c11103fbbf03a74",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Vista grafo"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "356757f0cfb8b5e7",
+    "type": "split",
+    "children": [
+      {
+        "id": "2bad58c3baa40402",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "7e92c7584cc47eed",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Esplora risorse"
+            }
+          },
+          {
+            "id": "de024939ef2280ed",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Ricerca"
+            }
+          },
+          {
+            "id": "feb44b08b1f03773",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Segnalibri"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "c411f2a459c34bf3",
+    "type": "split",
+    "children": [
+      {
+        "id": "22e8328e921afb1c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "f743afe7d5ae1a36",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Benvenuto.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Riferimenti a Benvenuto"
+            }
+          },
+          {
+            "id": "25d5c41585ac6aa7",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Benvenuto.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Collegamenti in uscita da Benvenuto"
+            }
+          },
+          {
+            "id": "b246ecf44649efcf",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Etichette"
+            }
+          },
+          {
+            "id": "fac325054d6ebb80",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Tutte le proprietà"
+            }
+          },
+          {
+            "id": "3d1a7e9aa919d740",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Benvenuto.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Struttura di Benvenuto"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Apri selezione rapida": false,
+      "graph:Apri vista grafo": false,
+      "canvas:Crea nuova lavagna": false,
+      "daily-notes:Apri nota del giorno": false,
+      "templates:Inserisci modello": false,
+      "command-palette:Apri riquadro comandi": false,
+      "bases:Crea nuova Base": false
+    }
+  },
+  "active": "9c11103fbbf03a74",
+  "lastOpenFiles": [
+    "output/Home.md",
+    "output/Quick Reference.md",
+    "raw/Auth Service Mobile.md",
+    "raw/Auth Middleware.md",
+    "output/Quick Reference.md.tmp.17652.5ea38306e1ae",
+    "output/Setup Guide.md",
+    "output/Setup Guide.md.tmp.17652.254364d1df1d",
+    "output/Sicurezza - Checklist.md",
+    "output/Sicurezza - Checklist.md.tmp.17652.a58753fec6de",
+    "output/Home.md.tmp.17652.8f0743b7e925",
+    "output",
+    "raw/Realtime Worker.md",
+    "raw/Realtime Worker.md.tmp.17652.e6c14f74a1b6",
+    "raw/Auth Service Mobile.md.tmp.17652.a731dac5e512",
+    "raw/Auth Service Web.md",
+    "raw/Auth Service Web.md.tmp.17652.1a4674df1db4",
+    "raw/Stripe Webhook EF.md",
+    "raw/Stripe Webhook EF.md.tmp.17652.afba748248f8",
+    "raw/Stripe Service.md",
+    "raw/Stripe Service.md.tmp.17652.023a95371702",
+    "raw/Express App.md",
+    "raw/RLS SQL.md",
+    "raw/Schema SQL.md",
+    "wiki/Realtime.md",
+    "wiki/Edge Functions.md",
+    "wiki/Mobile - Auth e OAuth.md",
+    "wiki/Frontend Web - Auth.md",
+    "wiki/Payments - Abbonamenti e Webhook.md",
+    "wiki/Payments - Checkout e Intent.md",
+    "wiki/Payments - Stripe Overview.md",
+    "wiki/Backend - Auth Middleware.md",
+    "wiki/Backend - App e Middleware.md",
+    "wiki/Auth - OTP SMS e MFA TOTP.md",
+    "wiki/Auth - OAuth e Magic Link.md",
+    "wiki/Auth - Email Password.md",
+    "wiki/Auth - Panoramica.md"
+  ]
+}
